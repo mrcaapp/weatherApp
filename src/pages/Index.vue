@@ -35,15 +35,16 @@
         </div>
         <div class="row text-weight-thin text-h6 q-pb-md">
           <div class="col-6">
-            <span>Sunrise</span>
+            <span>Sunrise</span><br>
             {{timeSunrise}}
           </div>
           <div class="col-6">
-            <span>Sunset</span>
+            <span>Sunset</span><br>
+            {{timeSunset}}
           </div>
         </div>
       </div>
-      <div class="col text-center">
+      <div class="col text-center q-pb-lg">
         <img :src="`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`">
       </div>
     </template>
@@ -62,9 +63,7 @@
         </q-btn>
       </div>
     </template>
-    <div class="col skyline">
 
-    </div>
   </q-page>
 </template>
 
@@ -95,8 +94,9 @@ export default {
         } else {
           return 'bg-day'
         }
-      }
-      return 'bg'
+      } else {
+        return ''
+      } 
     }
   },
   methods: {
@@ -108,10 +108,11 @@ export default {
       })
     },
     getWeather () {
-      axios(`${ this.apiURL }?lat=${ this.lat }&lon=${ this.long }&appid=${ this.apiKEY }&units=metric`)
+      axios(`${ this.apiURL }?lat=${ this.lat }&lon=${ this.long }&&appid=${ this.apiKEY }&units=metric`)
         .then(r =>{
           this.weatherData = r.data
-          this.timeSunrise = r.data.sys.sunrise.toLocaleString('pt-BR',  { timeZone: 'UTC' })
+          this.timeSunrise = this.formatHour(r.data.sys.sunrise)
+          this.timeSunset = this.formatHour(r.data.sys.sunset)
           console.log(this.weatherData)
         })
     },
@@ -119,14 +120,20 @@ export default {
       axios(`${ this.apiURL }?q=${ this.search }&appid=${ this.apiKEY }&units=metric`)
         .then(r =>{
           this.weatherData = r.data
+          this.timeSunrise = this.formatHour(r.data.sys.sunrise)
+          this.timeSunset = this.formatHour(r.data.sys.sunset)
         })
     },
+    formatHour (hour) {
+      let date = new Date(hour*1000)
+      return date.getHours(date) + ':' + date.getMinutes(date)
+    }
   }
 }
 </script>
 <style lang="sass">
   .q-page
-    background: linear-gradient(to bottom, #556270, #ff6b6b) !important
+    background: linear-gradient(to bottom, #556270, #ff6b6b)
     &.bg-night
       background: linear-gradient(to bottom, #232526, #414345)
     &.bg-day

@@ -10,7 +10,7 @@
         dark
       >
         <template v-slot:prepend>
-          <q-icon name="my_location"/>
+          <q-icon name="my_location" @click="getLocation"/>
         </template>
         <template v-slot:append>
           <q-icon
@@ -35,21 +35,23 @@
         </div>
         <div class="row text-weight-thin text-h6 q-pb-md">
           <div class="col-6">
-            <span>Sunrise</span><br>
+            <span>Nascer do sol</span><br>
             {{timeSunrise}}
           </div>
           <div class="col-6">
-            <span>Sunset</span><br>
+            <span>Pôr do sol</span><br>
             {{timeSunset}}
           </div>
         </div>
       </div>
-      <div class="col text-center q-pb-lg">
-        <img :src="`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`">
+      <div class="col text-center q-pb-lg text-white text-weight-thin">
+        <img :src="`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`"><br>
+        Velocidade do vento: {{(weatherData.wind.speed*2.913).toPrecision(3)}}Km/hr<br>
+        {{hora}}
       </div>
     </template>
     <template v-else>
-      <div class="col text-center text-white">
+      <div class="col text-center text-white q-pb-md">
         <div class="col text-h2 text-weight-thin">
           Weather
         </div>
@@ -73,7 +75,8 @@ export default {
   name: 'PageIndex',
   data () {
     return {
-      search: '',
+      hora: null,
+      search: null,
       weatherData: null,
       timeSunset: null,
       timeSunrise: null,
@@ -83,16 +86,22 @@ export default {
       apiKEY: '6415963eb5a25d009c6224989bd84f8e'
     }
   },
-  // mounted () {
-  //   this.getLocation()
-  // },
+  mounted() {
+    this.initTime()
+  },
   computed: {
     bgClass() {
       if(this.weatherData){
         if(this.weatherData.weather[0].icon.endsWith('n')) {
           return 'bg-night'
         } else {
-          return 'bg-day'
+          if(this.weatherData.weather[0].main === 'Clouds') {
+            return 'bg-day-clouds'
+          } else if (this.weatherData.weather[0].main === 'Rain') {
+            return 'bg-day-rain'
+          } else {
+            return 'bg-day'
+          }
         }
       } else {
         return ''
@@ -100,33 +109,82 @@ export default {
     }
   },
   methods: {
+    getHora () {
+      var time = new Date()
+      var hour = time.getHours()
+      var min = time.getMinutes()
+      var sec = time.getSeconds()
+
+      if(hour < 10) hour = "0" + hour
+      if(min < 10) min = "0" + min
+      if(sec < 10) sec = "0" + sec
+      
+      this.hora = hour + ":" + min + ":" + sec
+    },
+    initTime () {
+      setInterval(() => {this.getHora()}, 1000)
+    },
     getLocation () {
+      this.$q.loading.show()
       navigator.geolocation.getCurrentPosition (p => {
         this.lat = p.coords.latitude
         this.long = p.coords.longitude
         this.getWeather()
       })
+      .catch(e => {
+        this.$q.loading.hide()
+        this.$q.notify({
+          message: 'Localização não encontrada',
+          color: 'grey-7'
+        })
+      })
     },
     getWeather () {
+      this.$q.loading.show()
       axios(`${ this.apiURL }?lat=${ this.lat }&lon=${ this.long }&&appid=${ this.apiKEY }&units=metric`)
-        .then(r =>{
+        .then(r => {
           this.weatherData = r.data
           this.timeSunrise = this.formatHour(r.data.sys.sunrise)
           this.timeSunset = this.formatHour(r.data.sys.sunset)
-          console.log(this.weatherData)
+          this.$q.loading.hide()
+          console.log(r)
+        })
+        .catch(e => {
+          this.$q.loading.hide()
+          this.$q.notify({
+            message: 'Houve alguns problemas! Tente mais tarde',
+            color: 'grey-7'
+          })
         })
     },
     getWeatherBySearch () {
-      axios(`${ this.apiURL }?q=${ this.search }&appid=${ this.apiKEY }&units=metric`)
-        .then(r =>{
-          this.weatherData = r.data
-          this.timeSunrise = this.formatHour(r.data.sys.sunrise)
-          this.timeSunset = this.formatHour(r.data.sys.sunset)
+      if(this.search !== null && this.search !== ' '){
+        this.$q.loading.show()
+        axios(`${ this.apiURL }?q=${ this.search }&appid=${ this.apiKEY }&units=metric`)
+          .then(r => {
+            this.weatherData = r.data
+            this.timeSunrise = this.formatHour(r.data.sys.sunrise)
+            this.timeSunset = this.formatHour(r.data.sys.sunset)
+            this.$q.loading.hide()
+            console.log(r)
+          })
+          .catch(e => {
+            this.$q.loading.hide()
+            this.$q.notify({
+              message: 'Não foi possivel encontrar o local',
+              color: 'red'
+            })
+          })
+      } else {
+        this.$q.notify({
+          message: 'Digite uma localização',
+          color: 'grey-7'
         })
+      }
     },
     formatHour (hour) {
-      let date = new Date(hour*1000)
-      return date.getHours(date) + ':' + date.getMinutes(date)
+      let time = new Date(hour*1000)
+      return time.getHours(time) + ':' + time.getMinutes(time)
     }
   }
 }
@@ -137,7 +195,12 @@ export default {
     &.bg-night
       background: linear-gradient(to bottom, #232526, #414345)
     &.bg-day
-      background: linear-gradient(to bottom, #00b4db, #0083b0)
+      background: linear-gradient(to bottom, #2980b9, #6dd5fa)
+    &.bg-day-clouds
+      background: linear-gradient(to bottom, #373b44, #4286f4)
+    &.bg-day-rain
+      background: linear-gradient(to bottom, #2a2c31, #1a4892)
+
   .degree
     top: -53px
   .skyline
